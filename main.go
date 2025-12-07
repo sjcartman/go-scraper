@@ -34,7 +34,9 @@ func main() {
 }
 
 func exploreBooks(node *html.Node, books *[]Book) {
-	if searchAttributes(node, "class", "col-xs-6 col-sm-4 col-md-3 col-lg-3") {
+	if searchAttributes(node, func(item html.Attribute) bool {
+		return item.Key == "class" && item.Val == "col-xs-6 col-sm-4 col-md-3 col-lg-3"
+	}) {
 		book := Book{}
 		parseBookNode(node, &book)
 		*books = append(*books, book)
@@ -44,9 +46,9 @@ func exploreBooks(node *html.Node, books *[]Book) {
 	}
 }
 
-func searchAttributes(node *html.Node, key string, val string) bool {
+func searchAttributes(node *html.Node, searcher func(html.Attribute) bool) bool {
 	for _, item := range node.Attr {
-		if item.Key == key && item.Val == val {
+		if searcher(item) {
 			return true
 		}
 	}
@@ -54,7 +56,10 @@ func searchAttributes(node *html.Node, key string, val string) bool {
 }
 
 func parseBookNode(node *html.Node, book *Book) {
-	if searchAttributes(node, "class", "price_color") {
+
+	if searchAttributes(node, func(item html.Attribute) bool {
+		return item.Key == "class" && item.Val == "price_color"
+	}) {
 		price, err := parsePriceNode(node)
 		if err != nil {
 			fmt.Println(err)
@@ -63,7 +68,6 @@ func parseBookNode(node *html.Node, book *Book) {
 		} else {
 			book.price = price
 		}
-
 	}
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
 		parseBookNode(child, book)
