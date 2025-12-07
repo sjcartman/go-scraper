@@ -12,6 +12,7 @@ import (
 
 type Book struct {
 	price float64
+	name  string
 }
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 }
 
 func exploreBooks(node *html.Node, books *[]Book) {
-	if searchAttributes(node, func(item html.Attribute) bool {
+	if searchAttributesExists(node, func(item html.Attribute) bool {
 		return item.Key == "class" && item.Val == "col-xs-6 col-sm-4 col-md-3 col-lg-3"
 	}) {
 		book := Book{}
@@ -46,18 +47,23 @@ func exploreBooks(node *html.Node, books *[]Book) {
 	}
 }
 
-func searchAttributes(node *html.Node, searcher func(html.Attribute) bool) bool {
+func searchAttributes(node *html.Node, searcher func(html.Attribute) bool) (html.Attribute, error) {
 	for _, item := range node.Attr {
 		if searcher(item) {
-			return true
+			fmt.Printf("%v\t%v\n", item.Key, item.Val)
+			return item, nil
 		}
 	}
-	return false
+	return html.Attribute{}, fmt.Errorf("failed to find node")
+}
+func searchAttributesExists(node *html.Node, searcher func(html.Attribute) bool) bool {
+	_, err := searchAttributes(node, searcher)
+	return err == nil
 }
 
 func parseBookNode(node *html.Node, book *Book) {
 
-	if searchAttributes(node, func(item html.Attribute) bool {
+	if searchAttributesExists(node, func(item html.Attribute) bool {
 		return item.Key == "class" && item.Val == "price_color"
 	}) {
 		price, err := parsePriceNode(node)
@@ -69,9 +75,34 @@ func parseBookNode(node *html.Node, book *Book) {
 			book.price = price
 		}
 	}
+	if node.Data == "h3" {
+		name, err := parseBookName(node)
+		if err != nil {
+			fmt.Println(err)
+		} else if book.price > 0.0 {
+			fmt.Printf("error Book all ready has a price")
+		} else {
+			book.name = name
+		}
+	}
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
 		parseBookNode(child, book)
 	}
+
+}
+func parseBookName(node *html.Node) (string, error) {
+	link := node.FirstChild
+	if link == nil {
+		return "", fmt.Errorf("expected name to be in link node")
+	}
+
+	attribute, err := searchAttributes(link, func(item html.Attribute) bool {
+		return item.Key == "title"
+	})
+	if err != nil || attribute.Val == "" {
+		return "", fmt.Errorf("expected link node to have a title attribute")
+	}
+	return attribute.Val, nil
 
 }
 
